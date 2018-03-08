@@ -45,7 +45,7 @@ def doWorm(user):
     response = urllib.request.urlopen(request, postdata)
     try:
         response = opener.open(request)
-        page = response.read().decode('gbk')
+        response.read().decode('gbk')
     except urllib.error.URLError as e:
         print(e)
     cookie.save(ignore_discard=True, ignore_expires=True)
