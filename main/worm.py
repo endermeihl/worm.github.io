@@ -18,6 +18,7 @@ __author__ = 'Ender Mei'
 BASE_DIR = os.path.dirname(__file__)
 LOGIN_URL = "http://www.safetyme.cn/Login.shtml"
 GET_URL = 'http://www.safetyme.cn//a/exam.shtml?method=index'
+stnrs=[]
 
 
 def get_file(filename):
@@ -48,6 +49,7 @@ def doWorm(user):
     except urllib.error.URLError as e:
         print(e)
     cookie.save(ignore_discard=True, ignore_expires=True)
+   
     for item in cookie:
         print('Name = ' + item.name)
         print('Value = ' + item.value)
@@ -55,19 +57,19 @@ def doWorm(user):
     get_response = opener.open(get_request)
     soup = BeautifulSoup(get_response.read().decode('gbk'), 'html.parser')
     ids=[]
+    examtk = []
     for link in soup.find_all('a'):
         id = link.get('onclick').replace("openPaper('", '').replace(
             "','3')", "")
         print(id)
         ids.append(id)
-    for id in ids[1:2]:
+    for id in ids[1:]:
         get_url = "http://www.safetyme.cn//a/exam.shtml?method=showPaper&id=" + id
         print(get_url)
         get_request = urllib.request.Request(get_url, headers=headers)
         get_response = opener.open(get_request)
         soup = BeautifulSoup(get_response.read().decode('gbk'), 'html.parser')
         i = 0
-        examtk = []
         for div in zip(
                 soup.find_all("div", "exam-content"),
                 soup.find_all("div", "for-wrong")):
@@ -77,21 +79,34 @@ def doWorm(user):
             sttype = st.p.span.string
             repstring = '<p><span style="color: green; font-weight: bold;">' + sttype + "</span>" + str(
                 i) + "、"
+            stnr=str(st.p).replace(repstring, "").replace("(1.0分)</p>", "")
+            if stnr in stnrs:
+                continue
+            stnrs.append(stnr)
             tm = {}
             tm["stlx"] = sttype.replace("[", "").replace("]", "")
-            tm["stnr"] = str(st.p).replace(repstring, "").replace(
-                "(1.0分)</p>", "")
+            tm["stnr"] = stnr
             tm["stda"] = da.contents[4].string.replace("正确答案：", "").strip()
             stxxs = []
-            for li in st.ul:
-                soup2 = BeautifulSoup(str(li), "html.parser")
-                for inpt in zip(
-                        soup2.find_all("input"), soup2.find_all("span")):
-                    if inpt[0]['value']+inpt[1].string:
-                        stxxs.append(inpt[0]['value'] + inpt[1].string)
-            print(stxxs)
+            soup2 = BeautifulSoup(str(st.ul),"html.parser")
+            # for li in st.ul:
+            #     soup2 = BeautifulSoup(str(li), "html.parser")
+            for inpt in zip(soup2.find_all("input"),soup2.find_all("li")):
+                stxxs.append(inpt[0]['value'] + inpt[1].text)
+            #print(stxxs)
+            tm["stxx"]=stxxs
             examtk.append(tm)
+        print(len(examtk))
+    return examtk
 
+def writeJsonFile(examtk):
+    with open(get_file('examtk.json'), 'w', encoding='utf-8') as f:
+        json.dump(examtk,f,ensure_ascii=False)
+        print("加载入文件完成...")
+
+def disExamTk():
+    for user in _get_user():
+        writeJsonFile(doWorm(user))
 
 for user in _get_user():
-    doWorm(user)
+        writeJsonFile(doWorm(user))
